@@ -1,16 +1,18 @@
 "use client";
 
 import Image from "next/image";
-
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { avatarImages } from "../../constants";
 import { useToast } from "./hooks/use-toast";
-
+import { useUser } from "@clerk/nextjs";
+import { sendEmail } from "@/lib/sendGmail";
+import { useState } from "react";
 
 interface MeetingCardProps {
   title: string;
   date: string;
+  type: string;
   icon: string;
   isPreviousMeeting?: boolean;
   buttonIcon1?: string;
@@ -22,6 +24,7 @@ interface MeetingCardProps {
 const MeetingCard = ({
   icon,
   title,
+  type,
   date,
   isPreviousMeeting,
   buttonIcon1,
@@ -29,7 +32,86 @@ const MeetingCard = ({
   link,
   buttonText,
 }: MeetingCardProps) => {
+  const { user } = useUser();
   const { toast } = useToast();
+
+  const sendMeetingReminder = async (
+    meetingDate: string,
+    userEmail: string,
+    type: string,
+    link: string
+  ) => {
+    const meetingTime = new Date(meetingDate);
+    const now = new Date();
+
+    if (type === "upcoming") {
+      const fifteenMinutesBefore = new Date(meetingTime.getTime() - 15 * 60000);
+
+      if (now >= fifteenMinutesBefore && now < meetingTime) {
+        try {
+          const result = await sendEmail(
+            userEmail,
+            "Meeting Alert",
+            `Your meeting starts in 15 minutes, Meeting link: ${link}`
+          );
+
+          console.log("Email sent successfully", result);
+        } catch (error) {
+          console.error("Error sending email:", error);
+          toast({
+            title: "Failed to send email reminder",
+            description: "Please check your network connection and try again.",
+            variant: "destructive",
+          });
+        }
+      }
+    }
+  };
+
+  if (user?.emailAddresses && user.emailAddresses.length > 0) {
+    sendMeetingReminder(date, user.emailAddresses[0].emailAddress, type, link);
+  }
+
+  // const [reminderSent, setReminder] = useState(true);
+
+  // const sendMeetingReminder = async (
+  //   meetingDate: string,
+  //   userEmail: string,
+  //   type: string
+  // ) => {
+  //   if (!reminderSent) {
+  //     console.log("Reminder already sent.");
+  //     return; // Exit if reminder has already been sent
+  //   }
+
+  //   const meetingTime = new Date(meetingDate);
+  //   const now = new Date();
+
+  //   try {
+  //     const result = await sendEmail(
+  //       userEmail,
+  //       "Meeting Alert",
+  //       "Your meeting starts in 15 minutes"
+  //     );
+
+  //     // Check result to ensure email was sent successfully
+  //     console.log("Email sent successfully", result);
+
+  //     // Set the flag to true after successful email sending
+  //     setReminder(false);
+  //   } catch (error) {
+  //     setReminder(false);
+  //     console.error("Error sending email:", error);
+  //     toast({
+  //       title: "Failed to send email reminder",
+  //       description: "Please check your network connection and try again.",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
+
+  // // Example usage:
+  // sendMeetingReminder(date, "gautambinod629@gmail.com", type);
 
   return (
     <section className="flex min-h-[258px] w-full flex-col justify-between rounded-[14px] bg-dark-1 px-5 py-8 xl:max-w-[568px]">
@@ -92,7 +174,3 @@ const MeetingCard = ({
 };
 
 export default MeetingCard;
-
-
-
-
